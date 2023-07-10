@@ -84,3 +84,24 @@ end
 function BaleWrapperController:isFuelSaveAllowed()
     return not (self:isWorking() and not self.haveBaler)
 end
+
+--- Giants isn't unfolding the bale wrapper for us, so we do it here.
+function BaleWrapperController:onStart()
+    -- for some reason, bale wrappers that don't really unfold still have a spec_foldable, although there
+    -- is no foldable defined in the XML file. If we unfold these, they are stuck in the unfold state, also,
+    -- the check for foldAnimTime == 1 in canContinueWork() won't work, see #2598. These all have a default
+    -- 0.0001 anim time, so check if the anim time is a reasonable value and only unfold then.
+    if self.baleWrapper.spec_foldable and self.baleWrapper.spec_foldable.maxFoldAnimDuration > 0.1 then
+        self.baleWrapper:setFoldDirection(self.baleWrapper.spec_foldable.turnOnFoldDirection)
+    end
+end
+
+--- Returns false, while the wrapper is being unfolded.
+---@return boolean
+function BaleWrapperController:canContinueWork()
+    local spec = self.baleWrapper.spec_foldable
+    if spec == nil then 
+        return true
+    end
+    return spec.foldAnimTime == 0 or spec.foldAnimTime == 1
+end

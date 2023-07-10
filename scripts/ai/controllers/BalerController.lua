@@ -109,7 +109,13 @@ end
 
 --- Giants isn't unfolding balers, so we do it here.
 function BalerController:onStart()
-    self.baler:setFoldDirection(-1)
+    -- for some reason, balers that don't really unfold still have a spec_foldable, although there
+    -- is no foldable defined in the XML file. If we unfold these, they are stuck in the unfold state, also,
+    -- the check for foldAnimTime == 1 in canContinueWork() won't work, see #2598. These all have a default
+    -- 0.0001 anim time, so check if the anim time is a reasonable value and only unfold then.
+    if self.baler.spec_foldable and self.baler.spec_foldable.maxFoldAnimDuration > 0.1 then
+        self.baler:setFoldDirection(self.baler.spec_foldable.turnOnFoldDirection)
+    end
 end
 
 function BalerController:onFinished()
@@ -153,4 +159,14 @@ end
 --- on bales ready but not dropped yet when moving backwards
 function BalerController:registerIgnoreProximityObjectCallback(proximityController)
     proximityController:registerIgnoreObjectCallback(self, self.ignoreProximityObject)
+end
+
+--- Returns false, while the baler is being unfolded.
+---@return boolean
+function BalerController:canContinueWork()
+    local spec = self.baler.spec_foldable
+    if spec == nil then 
+        return true
+    end
+    return spec.foldAnimTime == 0 or spec.foldAnimTime == 1
 end
